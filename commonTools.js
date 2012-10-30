@@ -1,4 +1,4 @@
-//一个乱七八糟的公共方法库
+//一个乱七八糟&无视IE系列的公共方法库
 
 function CommonTools() {
     var _self = this;
@@ -44,6 +44,54 @@ function CommonTools() {
     };
 
     _self.css = {
+        addClass: function(elem, classname) {
+            if(typeof classname === "string") {
+                var addClassArr = classname.split(/\s+/),
+                    hadClassArr = elem.className.split(/\s+/);
+                for(var j = 0; j<addClassArr.length; j++) {
+                    var check = 1;
+                    for(var i = 0; i < hadClassArr.length; i++) {
+                        if(addClassArr[j] === hadClassArr[i]) {
+                            check = 0;
+                        }
+                    }
+                    if(check != 0) {
+                        hadClassArr.push(addClassArr[j]);
+                    }
+                }
+                var str = hadClassArr.join(" ");
+                elem.className = str;
+                return elem;
+            } else {
+                console.error("第二个参数必须是字符串!");
+            }
+        },
+
+        removeClass: function(elem, classname) {
+            var cate = typeof classname;
+            switch(cate) {
+                case "undefined":
+                    elem.className = "";
+                    return elem;
+                case "string":
+                    var addClassArr = classname.split(/\s+/),
+                        hadClassArr = elem.className.split(/\s+/),
+                        str;
+                    for(var j = 0; j < addClassArr.length; j++) {
+                        for(var i = 0; i < hadClassArr.length; i++) {
+                            if(addClassArr[j] === hadClassArr[i]) {
+                                hadClassArr.splice(i,1);
+                            }
+                        }
+                    }
+                    var str = hadClassArr.join(" ");
+                    elem.className = str;
+                    return elem;
+                default:
+                    console.error("第二个参数必须是字符串!");
+            }
+        },
+
         //translate3d css方法
         translate3d: function(elem, x, y, z) {
             var str = "translate3d(" + x + "," + y + "," + z + ")";
