@@ -3,6 +3,20 @@
 function CommonTools() {
     var _self = this;
 
+    _self.vendor = function() {
+        var obj = {
+                webkit: "webkitTransform",
+                Moz: "MozTransition",
+                O: "OTransform"
+            },
+            style = document.body.style;
+        for(key in obj) {
+            if(obj[key] in style) {
+                return [key, "-" + key.toLowerCase() + "-"];
+            }
+        }
+    }();
+
     //陀螺仪支持检测
     _self.supportsOrientationChange = window.onorientationchange === null ? true : false;
     _self.orientationEventName = _self.supportsOrientationChange ? 'orientationchange' : 'resize';
@@ -20,102 +34,102 @@ function CommonTools() {
 
     //IOS检测
     _self.isMobileSafari = navigator.userAgent.match(/(ipad|iphone|ipod).*mobile.*Safari/i);
+    //是否UC浏览器
+    _self.isUC = navigator.appVersion.indexOf("UC") != -1;
 
     _self.ajax = {
-        //JSONP方法
-        JSONP: function(url, callback) {
-            window.callbackJSONP = function(data) {
+        JSONP: function(url, success, error) {
+            var callbackName = "callbackJSONP" + Math.random()*1E20,
+                script = document.createElement("script");
+            window[callbackName] = function(data) {
                 window.valueJSONP = data;
-                delete window.callbackJSONP;
+                delete window[callbackName];
             }
-            var script = document.createElement("script");
             script.className = "jsonp_" + Math.random()*1E20;
-            script.src = url + "&callback=window.callbackJSONP";
+            script.src = url + "&cb=window." + callbackName + "&__=" + Math.random();
             document.body.appendChild(script);
             script.onload = function() {
-                callback(window.valueJSONP);
+                success(window.valueJSONP);
                 script.parentNode.removeChild(script);
                 delete window.valueJSONP;
             };
             script.onerror = function() {
-                console.log("接口异常！")
+                error();
             }
+        },
+
+        getJSON: function(url, success, error) {
+            var xhr = new XMLHttpRequest();
+            url += (url.indexOf("?") > -1 ? "&" : "?") + "__=" + Math.random();
+            function stateChange() {
+                if (xhr.readyState == 4) {
+                    if(xhr.status == 200) {
+                        result = JSON.parse(xhr.responseText);
+                        success(result);
+                    } else {
+                        error();
+                    }
+                }
+            }
+            xhr.onreadystatechange = stateChange;
+            xhr.open("get", url, true);
+            xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+            xhr.send();
         }
     };
 
     _self.css = {
-        addClass: function(elem, classname) {
-            if(typeof classname === "string") {
-                var addClassArr = classname.split(/\s+/),
-                    hadClassArr = elem.className.split(/\s+/);
-                for(var j = 0; j<addClassArr.length; j++) {
-                    var check = 1;
-                    for(var i = 0; i < hadClassArr.length; i++) {
-                        if(addClassArr[j] === hadClassArr[i]) {
-                            check = 0;
-                        }
-                    }
-                    if(check != 0) {
-                        hadClassArr.push(addClassArr[j]);
-                    }
-                }
-                var str = hadClassArr.join(" ");
-                elem.className = str;
-                return elem;
-            } else {
-                console.error("第二个参数必须是字符串!");
-            }
-        },
-
-        removeClass: function(elem, classname) {
-            var cate = typeof classname;
-            switch(cate) {
-                case "undefined":
-                    elem.className = "";
-                    return elem;
-                case "string":
-                    var addClassArr = classname.split(/\s+/),
-                        hadClassArr = elem.className.split(/\s+/),
-                        str;
-                    for(var j = 0; j < addClassArr.length; j++) {
-                        for(var i = 0; i < hadClassArr.length; i++) {
-                            if(addClassArr[j] === hadClassArr[i]) {
-                                hadClassArr.splice(i,1);
-                            }
-                        }
-                    }
-                    var str = hadClassArr.join(" ");
-                    elem.className = str;
-                    return elem;
-                default:
-                    console.error("第二个参数必须是字符串!");
-            }
-        },
-
-        //translate3d css方法
-        translate3d: function(elem, x, y, z) {
-            var str = "translate3d(" + x + "," + y + "," + z + ")";
-            elem.style.WebkitTransform = str;
-            elem.style.MozTransform = str;
-            elem.style.OTransform = "translate(" + x + "," + y + ")"; //Opera 12.5- unsupported 3D
-            elem.style.transform = str;
+        //设置transform css方法
+        transform: function(elem, str) {
+            elem.style[_self.vendor[0] + "Transform"] = str;
             return elem;
         },
-        //transition css方法
-        transition: function(elem, cssProperty, duration, funStr, delay) {
-            var str = cssProperty + " " + duration + "s " + funStr + " " + delay + "s ",
-                time = (duration + delay) * 1000;
-            elem.style.WebkitTransition = "-webkit-" + str;
-            elem.style.MozTransition = "-moz-" + str;
-            elem.style.OTransition = "-o-" + str;
-            elem.style.transition = str;
-            setTimeout(function() {
-                elem.style.WebkitTransition = "";
-                elem.style.MozTransition = "";
-                elem.style.OTransition = "";
-                elem.style.transition = "";
-            }, time)
+
+        //设置transition css方法
+        transition: function(elem) {
+            var str = "";
+            if(arguments.length > 1) {
+                str = [].slice.call(arguments, 1).join(",");
+            }
+            elem.style[_self.vendor[0] + "Transition"] = str;
+            return elem;
         }
+    };
+
+    //通用方法
+    _self.fn = {
+        removeElement: function(elem) {
+            return elem.parentNode != null ? elem.parentNode.removeChild(elem) : false;
+        },
+
+        addClass: function(elem, name){
+            var cls = elem.className,
+                classList = [];
+            name = name.split(/\s+/g);
+            for(var i = 0, l = name.length; i < l; i++) {
+                if (cls.indexOf(name[i]) == -1) {
+                    classList.push(name[i]);
+                }
+            }
+            classList.length && (elem.className += (cls ? " " : "") + classList.join(" "))
+            return elem;
+        },
+
+        removeClass: function(elem, name){
+            if (name === undefined) {
+                elem.className = '';
+                return elem;
+            }
+            var classList = elem.className;
+            name = name.split(/\s+/g);
+            for(var i = 0, l = name.length; i < l; i++) {
+                var regx = new RegExp('(^|\\s)' + name[i] + '(\\s|$)');
+                classList = classList.replace(regx, " ");
+            }
+            elem.className = classList.replace(/^\s+/, "").replace(/\s+$/, "").replace(/\s+/g, " ");
+            return elem;
+        }
+
     };
 
     _self.event = {
